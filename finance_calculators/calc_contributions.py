@@ -78,15 +78,15 @@ def reformat(amounts, periods=1, contribution_type= "employee", language="englis
   if contribution_type == "employee":
     caption = f"{timeframe[periods]} Contributions"
     emp_max = max_contritions.get("401k employee", year)
-    map_color = ColorCode(emp_max)
+    map_color = ColorCode(emp_max//periods)
   elif contribution_type == "total":
     caption = f"{timeframe[periods]} Total Contributions"
     emp_max = max_contritions.get("401k max", year)
-    map_color = ColorCode(emp_max)
+    map_color = ColorCode(emp_max//periods)
   elif contribution_type == "employer":
     caption = f"{timeframe[periods]} Employer Contributions"
     emp_max = max_contritions.get("401k max", year) - max_contritions.get("401k employee", year)
-    map_color = ColorCode(emp_max)
+    map_color = ColorCode(emp_max//periods)
   else:
     caption = f"Long Term Retirement Estimate"
 

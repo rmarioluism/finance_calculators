@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from calc_contributions import total_contribution, reformat, MaxContribution
+from finance_calculators.calc_contributions import total_contribution, reformat, MaxContribution
 
 # Yearly income estimates using hourly rates and 52 pay periods.
 # part-time, full-time, 4 hours overtime and 8 hours overtime
