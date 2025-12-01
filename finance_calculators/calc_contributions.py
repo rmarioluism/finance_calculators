@@ -61,7 +61,7 @@ def total_contribution(income,percentage:np.ndarray,periods:np.ndarray,max_contr
   amounts = pd.DataFrame(amounts,columns=columns)
   return amounts
 
-def reformat(amounts, periods=1, contribution_type= "employee", language="english",year=2026,flag_max=True):
+def reformat(amounts, periods=1, contribution_type= "employee", language="english",year=2026,flag_max=True, title=None):
 
   if language.lower() == "english":
     timeframe = {1:"Annual",12:"Monthly",26:"Biweekly",52:"Weekly"}
@@ -88,20 +88,22 @@ def reformat(amounts, periods=1, contribution_type= "employee", language="englis
     emp_max = max_contritions.get("401k max", year) - max_contritions.get("401k employee", year)
     map_color = ColorCode(emp_max//periods)
   else:
-    caption = f"Long Term Retirement Estimate"
+    caption = "Long Term Retirement Estimate"
 
-  if flag_max:
-    amounts = amounts.style.map(map_color._color_red_or_green).set_caption(caption).set_table_styles([{
+  if title:
+    # Overwrite the caption
+    caption = title
+
+  table_style = [{
       'selector': 'caption',
       'props': [
           # ('color', 'blue'),
           ('font-size', '32px')
-      ]}])
+      ]}]
+  
+  if flag_max:
+    amounts = amounts.style.map(map_color._color_red_or_green).set_caption(caption).set_table_styles(table_style)
   else:
-    amounts = amounts.style.set_caption(caption).set_table_styles([{
-      'selector': 'caption',
-      'props': [
-        # ('color', 'blue'),
-        ('font-size', '32px')
-      ]}])
+    amounts = amounts.style.set_caption(caption).set_table_styles(table_style)
+
   return amounts
