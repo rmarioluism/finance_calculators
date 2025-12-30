@@ -40,7 +40,7 @@ class Portfolio():
                     "annualHoldingsTurnover":"turnOver","trailingPE":"trailingPE",
                     "beta3Year":"beta3Year", "netExpenseRatio":"netExpenseRatio"}
         
-    def download(self,):
+    def download_portfolio_historical_data(self,):
         # Download and cache the data for each ticker including detailes about expenses, etc...
         for  vals in self.portofolio_strategies:
             for ticker in vals["tickers"]:
@@ -80,12 +80,16 @@ class Portfolio():
             self.download_cache[key] = merged_df
 
 
-    def simulate_dca_on_historical_data(self,purchase_amount = 10_000, trim_method = 2000):
+    def simulate_dca_on_historical_data(self,purchase_amount = 10_000, trim_method = 2000, N=10):
+
+        cmap = plt.get_cmap("Greens")
+        colors = cmap(np.linspace(0, 1, N))
+
         plt.figure(figsize=(16,8))
 
         portfolio_outcomes = []
         plotted = []
-        
+        color_incrementor = 0 
         # Plot the fund price history and compute the equity of DCA
         for  vals in self.portofolio_strategies:
             name, tickers, weights,_ = vals.values()
@@ -98,7 +102,7 @@ class Portfolio():
             best_worst_year = []
             weighted_returns = 0
             for weight, ticker in zip(weights,tickers):
-
+           
                 if ticker in self.download_cache:
                     data = copy.deepcopy(self.download_cache[ticker])
 
@@ -109,7 +113,7 @@ class Portfolio():
                     self.download_cache[ticker] = copy.deepcopy(data)
 
                 # Reformat the dataframe
-                data["Date"] = pd.to_datetime(data.index)
+                data["Date"] = pd.to_datetime(data.index) #remove the hr:min:sec
                 data["Year"] = data.Date.dt.year
                 data.reset_index(drop=True, inplace=True)
 
@@ -149,13 +153,11 @@ class Portfolio():
                     portfolio.append(0)
                     continue
 
-
-
                 # TODO how can we add dividend?
                 adj_close = adj_close.reshape(-1,t)
 
                 # Yearly computation taking into account expense ratio
-                expense = info_cache[ticker].get("expense") or info_cache[ticker].get("netExpenseRatio")/100
+                expense = self.info_cache[ticker].get("expense") or self.info_cache[ticker].get("netExpenseRatio")/100
                 purchase_price = adj_close[:,::10] #every two weeks early DCA
                 number_of_years = purchase_price.shape[0]
                 investment_amount = purchase_amount*weight/purchase_price.shape[1]
@@ -173,17 +175,21 @@ class Portfolio():
                 portfolio.append(np.sum(yearly_returns_minus_expenses))
 
                 if ticker not in plotted:
-
-                norm_price = (price["Adj Close"]-min(price["Adj Close"]))/max(price["Adj Close"])
-                plt.plot(price["Date"],norm_price, label=f"{ticker}-{info_cache[ticker]["longName"]}")
-                plotted.append(ticker)
+                    
+                    norm_price = (price["Adj Close"]-min(price["Adj Close"]))/max(price["Adj Close"])
+                    plt.plot(price["Date"],norm_price, 
+                             label=f"{ticker}-{self.info_cache[ticker]["longName"]}")
+                    
+                    plotted.append(ticker)
 
                 #Add portoflio historical price
                 portfolio_historical_price += (price["Adj Close"] * weight)
 
             if 0 not in weights:
+                color = colors[color_incrementor]
                 norm_historical_price = (portfolio_historical_price-min(portfolio_historical_price))/max(portfolio_historical_price)
-                plt.plot(price["Date"],norm_historical_price, label=f"{weights[0]}/{weights[1]}% stock/bond")
+                plt.plot(price["Date"],norm_historical_price,color=color, label=f"{weights[0]}/{weights[1]}% stock/bond")
+                color_incrementor+=1
 
             total_investment = purchase_amount * number_of_years
             # Stats to compute the efficient frontier
@@ -238,7 +244,9 @@ class Portfolio():
                                         "total investment":total_investment,
                                         "equity":equity})
 
-            plt.legend()
-            plt.xlabel("Year")
-            plt.ylabel("Close Value ($)")
-            plt.show(block=False)
+        plt.legend()
+        plt.xlabel("Year")
+        plt.ylabel("Close Value ($)")
+        plt.show(block=False)
+
+        return portfolio_outcomes
