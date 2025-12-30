@@ -22,72 +22,95 @@ import copy
 pd.options.mode.copy_on_write = True
 
 portofolio_strategies = [
-                         {"name":f"{stock}/{bond}%",
+                         {"name":"3 Fund",
                          'tickers': ["VTSAX","VBTLX", "VYM"],
-                         'weights': [stock/100, bond/100, 20/100],
-                         "comment":""} for stock, bond in zip(range(0,100,10),reversed(range(0,100,10)))
+                         'weights': [.5, .2, .3],
+                         "comment":""} 
                          ]
 
 portfolio_obj = Portfolio(portofolio_strategies)
 portfolio_obj.download_portfolio_historical_data()
-portfolio_outcomes = portfolio_obj.simulate_dca_on_historical_data(purchase_amount = 10_000, trim_method = 2000, N=8)
+portfolio_outcomes = portfolio_obj.simulate_dca_on_historical_data(purchase_amount = 10_000, trim_method = 2000, N=8, plot_mix=False)
+
+portofolio_strategies = [
+                         {"name":f"{stock}/{bond}%",
+                         'tickers': ["VTSAX","VBTLX"],
+                         'weights': [stock/100, bond/100,],
+                         "comment":""} for stock, bond in zip(range(0,101,10),reversed(range(0,101,10)))
+                         ]
+
+portfolio_obj = Portfolio(portofolio_strategies)
+portfolio_obj.download_portfolio_historical_data()
+portfolio_outcomes = portfolio_obj.simulate_dca_on_historical_data(purchase_amount = 10_000, trim_method = 2000, N=10, plot_mix=True)
 
 
-plt.figure(figsize=(10, 6))
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
-labels = [p["name"].replace("%","") for p in portfolio_outcomes]
+# Configuration
+COLORS = {"year": "#002C3E", "month": "#BC0E4C", "day": "#FFC501"}
+plt.figure(figsize=(12, 7))
+
+# Data Extraction
+labels = [p["name"].replace("%", "") for p in portfolio_outcomes]
 indices = range(len(portfolio_outcomes))
 
-best_day = []
-worst_day = []
-best_month = []
-worst_month = []
-best_year = []
-worst_year = []
-for i, p in enumerate(portfolio_outcomes):
-    best_day.append(p["best_worst_year"][0]['best day'] * 100)
-    worst_day.append(p["best_worst_year"][0]['worst day'] * 100)
-    best_month.append(p["best_worst_year"][0]['best month'] * 100)
-    worst_month.append(p["best_worst_year"][0]['worst month'] * 100)
-    best_year.append(p["best_worst_year"][0]['best year'] * 100)
-    worst_year.append(p["best_worst_year"][0]['worst year'] * 100)
-
-plt.bar(indices, best_year, color="#002C3E")
-plt.bar(indices, worst_year, color="#002C3E")
-# plt.bar(indices, best_month, color="#BC0E4C", )
-# plt.bar(indices, worst_month, color="#BC0E4C")
-# plt.bar(indices, best_day, color="#FFC501")
-# plt.bar(indices, worst_day, color="#FFC501")
-
-
+# Track min/max for dynamic scaling to keep text inside
+y_min_coords = []
+y_max_coords = []
 
 for i, p in enumerate(portfolio_outcomes):
-    best_val = p["best_worst_year"][0]['best year'] * 100
-    worst_val = p["best_worst_year"][0]['worst year'] * 100
-    up_market = p["best_worst_year"][0]["up market"]
-    down_market = p["best_worst_year"][0]["down market"]
-    equity = p["equity"]
+    stats = p["best_worst_year"][0]
+    equity_m = p["equity"] / 1e6
+    
+    # Values as percentages
+    b_year, w_year = stats['best year'] * 100, stats['worst year'] * 100
+    b_month, w_month = stats['best month'] * 100, stats['worst month'] * 100
+    b_day, w_day = stats['best day'] * 100, stats['worst day'] * 100
+    up, down = stats["up market"], stats["down market"]
 
-    # Text for Best Year (on top)
-    plt.text(i, best_val + 1, f'{best_val:.1f}%',
-             ha='center', va='bottom', fontweight='bold')
+    # Record coordinates for auto-scaling (including label offsets)
+    y_max_coords.append(b_year + 8) # Padding for the $M label
+    y_min_coords.append(w_year - 5) # Padding for the % label
 
-    # Text for Best Year (on top)
-    plt.text(i, best_val + 4, f'${equity/1e6:.02f}M',
-             ha='center', va='bottom', fontweight='bold')
+    # 1. Plot Bars
+    plt.bar(i, b_year, color=COLORS["year"])
+    plt.bar(i, w_year, color=COLORS["year"])
+    plt.bar(i, b_month, color=COLORS["month"])
+    plt.bar(i, w_month, color=COLORS["month"])
+    plt.bar(i, b_day, color=COLORS["day"])
+    plt.bar(i, w_day, color=COLORS["day"])
 
-    plt.text(i, 1, f'{up_market}/{up_market+down_market}',
-             color="white",
-             ha='center', va='bottom', fontweight='bold')
+    # 2. Add Text Labels
+    # Best Year %
+    plt.text(i, b_year + 1, f'{b_year:.1f}%', ha='center', va='bottom', fontweight='bold', fontsize=9)
+    
+    # Up/Down Market Ratio
+    plt.text(i, b_year - 4, f'{up}/{up + down}', color="white", ha='center', va='bottom', fontweight='bold', fontsize=8)
 
-    # Text for Worst Year (underneath)
-    plt.text(i, worst_val - 1, f'{worst_val:.1f}%',
-             ha='center', va='top', fontweight='bold', color='red')
+    # Equity ($M) - Highest text element
+    plt.text(i, b_year + 5, f'${equity_m:.2f}M', ha='center', va='bottom', fontweight='bold', fontsize=9)
+    
+    # Worst Year % - Lowest text element
+    plt.text(i, w_year - 1, f'{w_year:.1f}%', ha='center', va='top', fontweight='bold', color='red', fontsize=9)
 
-plt.xticks(indices, labels, rotation=90, ha='right')
-plt.axhline(0, color='black', linewidth=0.8) # Add a baseline at 0%
-plt.ylabel("Return (%)")
-# plt.title("Best and Worst Year Outcomes by Portfolio")
+# Formatting
+plt.xticks(indices, labels, rotation=45, ha='right')
+plt.xlabel("Stock/Bond", fontweight='bold', labelpad=10) # Added x-label
+plt.ylabel("Return (%)", fontweight='bold')
+plt.axhline(0, color='black', linewidth=0.8)
+
+# Set Y-limits with buffer to ensure text is "within"
+plt.ylim(min(y_min_coords), max(y_max_coords))
+
+# 3. Legend
+legend_handles = [
+    mpatches.Patch(color=COLORS["year"], label='Yearly'),
+    mpatches.Patch(color=COLORS["month"], label='Monthly'),
+    mpatches.Patch(color=COLORS["day"], label='Daily')
+]
+plt.legend(handles=legend_handles, loc='upper left')
+
 plt.tight_layout()
 plt.show()
 
