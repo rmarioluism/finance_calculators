@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from functools import reduce
 import time
-
+from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as mpl
 
 import os
@@ -80,10 +80,15 @@ class Portfolio():
             self.download_cache[key] = merged_df
 
 
-    def simulate_dca_on_historical_data(self,purchase_amount = 10_000, trim_method = 2000, N=10):
+    def simulate_dca_on_historical_data(self,purchase_amount = 10_000, trim_method = 2000, N=10, plot_mix=False):
 
-        cmap = plt.get_cmap("Greens")
-        colors = cmap(np.linspace(0, 1, N))
+        # cmap = plt.get_cmap("Greens")
+        # 
+
+        color_start = "tab:blue" 
+        color_end = "tab:orange"
+        cmap = LinearSegmentedColormap.from_list("safety_to_growth", [color_start, color_end])
+        colors = cmap(np.linspace(0, 1, N+2))[1:-1]
 
         plt.figure(figsize=(16,8))
 
@@ -185,7 +190,7 @@ class Portfolio():
                 #Add portoflio historical price
                 portfolio_historical_price += (price["Adj Close"] * weight)
 
-            if 0 not in weights:
+            if 0 not in weights and plot_mix:
                 color = colors[color_incrementor]
                 norm_historical_price = (portfolio_historical_price-min(portfolio_historical_price))/max(portfolio_historical_price)
                 plt.plot(price["Date"],norm_historical_price,color=color, label=f"{weights[0]}/{weights[1]}% stock/bond")
