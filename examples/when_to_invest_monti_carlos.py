@@ -71,6 +71,7 @@ for start_year,end_year in years[:,[0,-1]]:
 	adj_close = np.hstack([adj_close,np.full(t - len(adj_close)%t,adj_close[-1])])
 	adj_close = adj_close.reshape(-1,t)
 
+	# TODO this is wrong. The portfolio comparison has the right code
 	#TODO add a random location
 	perfect_timing = pd.DataFrame(np.min(adj_close,axis=1),columns=['Adj Close'])
 	poor_timing = pd.DataFrame(np.max(adj_close,axis=1),columns=['Adj Close'])

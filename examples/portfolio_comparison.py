@@ -7,7 +7,9 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from functools import reduce
-
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import copy
 import matplotlib as mpl
 from finance_calculators.portfolio_simulation import Portfolio
 
@@ -17,7 +19,7 @@ mpl.rcParams['xtick.labelsize'] = fontsize
 mpl.rcParams['ytick.labelsize'] = fontsize
 mpl.rcParams['axes.labelsize'] = fontsize
 
-import copy
+
 
 pd.options.mode.copy_on_write = True
 
@@ -44,8 +46,7 @@ portfolio_obj.download_portfolio_historical_data()
 portfolio_outcomes = portfolio_obj.simulate_dca_on_historical_data(purchase_amount = 10_000, trim_method = 2000, N=10, plot_mix=True)
 
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+
 
 # Configuration
 COLORS = {"year": "#002C3E", "month": "#BC0E4C", "day": "#FFC501"}
@@ -70,7 +71,7 @@ for i, p in enumerate(portfolio_outcomes):
     up, down = stats["up market"], stats["down market"]
 
     # Record coordinates for auto-scaling (including label offsets)
-    y_max_coords.append(b_year + 8) # Padding for the $M label
+    y_max_coords.append(b_year + 9) # Padding for the $M label
     y_min_coords.append(w_year - 5) # Padding for the % label
 
     # 1. Plot Bars
@@ -114,5 +115,47 @@ plt.legend(handles=legend_handles, loc='upper left')
 plt.tight_layout()
 plt.show()
 
-#TODO add the three color legend
-# TODO Add total return in millions or thousands
+
+
+max_portfolio_size = max([len(v["tickers"]) for v in portfolio_outcomes])
+portfolio_list = []
+for portfolio in portfolio_outcomes:
+  tickers = portfolio["tickers"]
+  weights = portfolio["weights"]
+
+  current_weights = np.array(weights)
+  std_returns = portfolio["std_returns"]
+  covar = np.cov(std_returns.T,ddof=1)
+  # std_portfolio = np.sqrt(current_weights@covar@current_weights.T).item() *100
+
+  if len(tickers)<max_portfolio_size:
+    padding = max_portfolio_size-len(tickers)
+    tickers = (tickers+["",]*padding)
+    weights = (weights+[0,]*padding)
+
+  sorted_pairs = sorted(zip(tickers, weights), key=lambda x: x[1], reverse=True)
+  tickers, weights = zip(*sorted_pairs)
+
+  labels = [f"{t} ({w*100:.2f}%)" if t else "" for t,w in zip(tickers,weights)]
+  # labels = [f"{w*100:.2f}%" if t else "" for t,w in zip(tickers,weights)]
+
+  portfolio_list.append([portfolio["name"],
+                       f'{round(portfolio["expense"]*100,2)} %',
+                       portfolio["Number of Years"],
+                      #  f"{round(std_portfolio,2)}%",
+                       f'${portfolio["total investment"]:,.2f}',
+                       f'${portfolio["equity"]:,.2f}',
+                       f'{round(portfolio["CAGR"],2)}%',
+                       ] + labels)
+
+# portfolio_df = sorted(portfolio_df, key=lambda x: x[3],reverse=True)
+portfolio_df = pd.DataFrame(portfolio_list).T
+portfolio_df.columns = portfolio_df.iloc[0,:]
+portfolio_df = portfolio_df.drop(0)
+index = [ "Expense Ratio","Total Years", "Total Investment","End Balance","CAGR"]
+index += [f"Fund {x-len(index)+1}" for x in range(len(index),portfolio_df.shape[0])]
+portfolio_df.index = index
+# portfolio_df.index = [ "Expense","Net Expense",] + [x for x in tickers]
+
+# portfolio_df.index.name = 'Rank'
+portfolio_df
